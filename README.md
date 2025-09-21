@@ -1,28 +1,57 @@
-# Network Share
+# NetworkShare
 
-Room-based WebSocket file sharing with drag-and-drop UI.
+Simple LAN file sharing with a visual “room” map. Drop files onto a person to send to them, or onto the floor to broadcast to everyone.
 
-## Run
+## Features
 
-1. Install Node.js 18+
-2. Install deps: `npm i`
-3. Start: `npm run dev`
-4. Open `http://localhost:18080` in two browsers (or devices on LAN)
+- Drag-and-drop sending: drop on a desk (targeted) or floor (broadcast)
+- Incoming panel with progress, Open, and SVG Download
+- Fixed seating layout (725x513), 150x150 desks; extra users appear as guest circles
+- Names: each client sets a display name; peers are normalized and shown consistently
+- WebSocket relay with chunked transfer (no external services)
 
-## Protocol
+## Quick start
 
-WebSocket JSON messages within a room.
+1) Requirements: Node.js 18+
 
-- `hello { room, clientId? }` → server replies `welcome { room, clientId }` and broadcasts `peers` updates
-- `relay { payload }` → broadcast to all peers in room except sender
+2) Install
 
-File transfer payloads (app-level):
+```bash
+npm i
+```
 
-- Offer: `{ kind: 'file', phase: 'offer', transferId, name, size, mime }`
-- Accept: `{ kind: 'file', phase: 'accept', transferId }`
-- Chunk: `{ kind: 'file', phase: 'chunk', transferId, data: number[], size, name, mime }`
-- Complete: `{ kind: 'file', phase: 'complete', transferId }`
+3) Run
 
-Notes: Chunks are small arrays for simplicity; for large files consider WebRTC or binary frames.
+```bash
+npm run dev
+```
 
+Open `http://localhost:18080` in two browsers/devices on the same network.
 
+If port 18080 is taken, the server will try the next ports.
+
+## How it works
+
+- Server serves static UI and a WebSocket endpoint
+- Messages
+  - `hello { clientId?, identity }` → `welcome { clientId, identity }`, `peers`, `layout`
+  - `relay { to?, payload }` → forwarded to `to` or broadcast to others
+  - `layout_update` is ignored (layout is fixed server-side)
+- File payloads
+  - offer: `{ kind: 'file', phase: 'offer', transferId, name, size, mime }`
+  - accept: `{ kind: 'file', phase: 'accept', transferId }`
+  - chunk: `{ kind: 'file', phase: 'chunk', transferId, data: number[], size, name, mime }`
+  - complete: `{ kind: 'file', phase: 'complete', transferId }`
+
+Notes: This uses JSON frames. For huge files or many clients, consider binary frames or WebRTC.
+
+## Security
+
+LAN only by default. If exposing on the internet:
+
+- Use HTTPS + WSS and a reverse proxy that supports WebSockets
+- Restrict access (VPN, auth) as needed
+
+## License
+
+MIT

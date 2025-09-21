@@ -1,33 +1,39 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Network Share</title>
-	<link rel="stylesheet" href="/style.css" />
-</head>
-<body>
-	<header>
-		<h1>Network Share</h1>
-		<div></div>
-	</header>
-	<div class="identity">
-		<input id="name" placeholder="Your name" />
-		<button id="saveIdent">Save</button>
-				<label class="lock"><input id="lockLayout" type="checkbox" checked disabled /> Layout locked</label>
-	</div>
-	<main>
-		<section class="left">
-			<h3>Main room</h3>
-			<div id="roomMap" class="room-map" tabindex="0" aria-label="Room Map (drag peers, drop files)"></div>
-		</section>
-		<section class="right">
-			<h3>Incoming</h3>
-			<ul id="incoming" class="list"></ul>
-		</section>
-	</main>
-	<script type="module" src="/main.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Network Share</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Network Share</h1>
+      <div></div>
+    </header>
+    <div class="identity">
+      <input id="name" placeholder="Your name" />
+      <button id="saveIdent">Save</button>
+      <label class="lock"
+        ><input id="lockLayout" type="checkbox" checked disabled /> Layout
+        locked</label
+      >
+    </div>
+    <main>
+      <section class="left">
+        <h3>Main room</h3>
+        <div
+          id="roomMap"
+          class="room-map"
+          tabindex="0"
+          aria-label="Room Map (drag peers, drop files)"
+        ></div>
+      </section>
+      <section class="right">
+        <h3>Incoming</h3>
+        <ul id="incoming" class="list"></ul>
+      </section>
+    </main>
+    <script type="module" src="/main.js"></script>
+  </body>
 </html>
-
-
