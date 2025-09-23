@@ -80,6 +80,15 @@ main {
   display: flex;
   gap: 8px;
 }
+.text-body {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  background: #0f1a3a;
+  border: 1px solid #27305a;
+  border-radius: 6px;
+  padding: 8px;
+  color: #dce6ff;
+}
 .actions .download {
   display: inline-flex;
   align-items: center;

@@ -102,11 +102,29 @@ function readableSize(bytes) {
 // removed old outgoing list UI
 
 function onRelay(packet, from, fromName) {
-  if (!packet || packet.kind !== "file") return;
+  if (!packet) return;
   try {
     console.log("relay payload:", packet, "from:", from, "fromName:", fromName);
   } catch {}
-  if (packet.phase === "offer") {
+  if (packet.kind === "text") {
+    const sender = peers.find((p) => p.clientId === from);
+    const fallbackName = sender && sender.name && sender.name.trim() ? sender.name.trim() : shortId(from);
+    const senderName = fromName && fromName.trim() ? fromName.trim() : fallbackName;
+    const li = document.createElement("li");
+    li.className = "item";
+    li.innerHTML = `<div>
+        <div class="name">Text</div>
+        <div class="meta">From: ${escapeHtml(senderName)}</div>
+        <div class="text-body">${escapeHtml(String(packet.content || ""))}</div>
+      </div>
+      <div class="actions"><button class="copy">Copy</button></div>`;
+    li.querySelector(".copy").onclick = () => {
+      try { navigator.clipboard.writeText(String(packet.content || "")); } catch {}
+    };
+    incoming.prepend(li);
+    return;
+  }
+  if (packet.kind === "file" && packet.phase === "offer") {
     const { transferId, name, size, mime } = packet;
     const sender = peers.find((p) => p.clientId === from);
     const fallbackName =
@@ -141,7 +159,7 @@ function onRelay(packet, from, fromName) {
     incoming.prepend(li);
     // auto-accept to ensure incoming always progresses
     accept();
-  } else if (packet.phase === "chunk") {
+  } else if (packet.kind === "file" && packet.phase === "chunk") {
     let li = incoming.querySelector(
       `li[data-transfer-id="${packet.transferId}"]`
     );
@@ -173,7 +191,7 @@ function onRelay(packet, from, fromName) {
     state.received += packet.data.length;
     const bar = li.querySelector(".bar");
     bar.style.width = `${Math.round((state.received / state.size) * 100)}%`;
-  } else if (packet.phase === "complete") {
+  } else if (packet.kind === "file" && packet.phase === "complete") {
     const li = incoming.querySelector(
       `li[data-transfer-id="${packet.transferId}"]`
     );
@@ -370,13 +388,28 @@ function renderRoomMap() {
       e.stopPropagation();
       e.stopImmediatePropagation?.();
       chip.classList.remove("dragover");
-      const files = e.dataTransfer?.files;
-      if (!files || files.length === 0) return;
       const to = chip.dataset.clientId || null;
       if (!to) return;
       chip.classList.add("flash");
       setTimeout(() => chip.classList.remove("flash"), 600);
-      sendFiles(Array.from(files), to);
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) sendFiles(Array.from(files), to);
+    // text to single recipient
+    const dt = e.dataTransfer;
+    try {
+      const txt = dt && typeof dt.getData === "function" ? dt.getData("text") : "";
+      if (txt && txt.trim()) sendText(txt, to);
+    } catch {}
+    const items = e.dataTransfer && e.dataTransfer.items;
+    if (items) {
+      for (const it of items) {
+        if (it.kind === "string") {
+          it.getAsString((s) => {
+            if (s && s.trim()) sendText(s, to);
+          });
+        }
+      }
+    }
     };
     roomMap.appendChild(chip);
   }
@@ -423,8 +456,23 @@ function renderRoomMap() {
     roomMap.classList.add("flash");
     setTimeout(() => roomMap.classList.remove("flash"), 600);
     const files = e.dataTransfer?.files;
-    if (!files || files.length === 0) return;
-    sendFiles(Array.from(files), null);
+    if (files && files.length > 0) sendFiles(Array.from(files), null);
+    // text broadcast
+    const dt = e.dataTransfer;
+    try {
+      const txt = dt && typeof dt.getData === "function" ? dt.getData("text") : "";
+      if (txt && txt.trim()) sendText(txt, null);
+    } catch {}
+    const items = e.dataTransfer && e.dataTransfer.items;
+    if (items) {
+      for (const it of items) {
+        if (it.kind === "string") {
+          it.getAsString((s) => {
+            if (s && s.trim()) sendText(s, null);
+          });
+        }
+      }
+    }
   };
 }
 
@@ -572,6 +620,31 @@ if (lockLayout) lockLayout.addEventListener("change", () => renderRoomMap());
 
 async function sendFiles(files, toClientId) {
   for (const f of files) await sendFile(f, null, toClientId);
+}
+
+function sendText(text, to) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const clean = toPlainText(String(text || ''))
+  if (!clean) return
+  try {
+    const fromName = identity.name && identity.name.trim() ? identity.name.trim() : shortId(clientId);
+    const toName = to ? (peers.find(p => p.clientId === to)?.name || shortId(to)) : 'everyone';
+    console.log(`sending text from ${fromName} to ${toName}:`, clean.slice(0, 80));
+  } catch {}
+  ws.send(JSON.stringify({ type: 'relay', to: to || null, payload: { kind: 'text', content: clean } }))
+}
+
+function toPlainText(s) {
+  try {
+    // Prefer text/plain; if HTML-ish, strip tags safely
+    if (/<[a-z][\s\S]*>/i.test(s)) {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(s, 'text/html')
+      const t = doc?.body?.textContent || ''
+      return t.replace(/\u00A0/g, ' ').trim()
+    }
+    return s.replace(/\u00A0/g, ' ').trim()
+  } catch { return String(s || '').trim() }
 }
 
 function normalizePeers(list) {
